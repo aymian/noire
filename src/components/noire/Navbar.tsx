@@ -7,6 +7,8 @@ import UserDropdown from "./UserDropdown";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import SearchOverlay from "./SearchOverlay";
+import { usePlayer } from "@/contexts/PlayerContext";
 
 /**
  * NOIRE Navbar - Cinematic Top Bar
@@ -19,10 +21,30 @@ interface NavbarProps {
 
 const Navbar = ({ onAuthClick, adminMode }: NavbarProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userData, setUserData] = useState<any>(null);
+  const { playSong } = usePlayer();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+
+      // Press 's' to search (but not when in an input/textarea)
+      if (e.key === "s" && !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement).tagName)) {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -70,7 +92,7 @@ const Navbar = ({ onAuthClick, adminMode }: NavbarProps) => {
   const adminData = {
     username: "yves2008",
     fullName: "Yves Admin",
-    isPro: true
+    plan: "ADMIN"
   };
 
   return (
@@ -111,6 +133,7 @@ const Navbar = ({ onAuthClick, adminMode }: NavbarProps) => {
 
           {!adminMode && (
             <motion.button
+              onClick={() => setIsSearchOpen(true)}
               className="p-2.5 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted/30"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
@@ -234,6 +257,16 @@ const Navbar = ({ onAuthClick, adminMode }: NavbarProps) => {
           )}
         </AnimatePresence>
       </motion.nav>
+
+      <SearchOverlay
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onPlaySong={(song) => {
+          setIsSearchOpen(false);
+          playSong([song], 0);
+          navigate(`/song-details?id=${song.id}&title=${song.title}&artist=${song.artist}&url=${song.audioUrl}&mood=${song.mood}`);
+        }}
+      />
     </>
   );
 };

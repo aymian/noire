@@ -60,7 +60,7 @@ const UserDropdown = ({ user, userData }: UserDropdownProps) => {
                         {displayName}
                     </span>
                     <span className="text-[10px] text-primary/70 uppercase tracking-widest font-bold">
-                        PRO
+                        {userData?.plan || "FREE"}
                     </span>
                 </div>
 
@@ -96,7 +96,9 @@ const UserDropdown = ({ user, userData }: UserDropdownProps) => {
                             </div>
                             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 rounded-lg border border-primary/20">
                                 <Sparkles className="w-3.5 h-3.5 text-primary" />
-                                <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Premium Member</span>
+                                <span className="text-[10px] font-bold text-primary uppercase tracking-wider">
+                                    {userData?.plan ? `${userData.plan} Member` : "Aura Explorer"}
+                                </span>
                             </div>
                         </div>
 

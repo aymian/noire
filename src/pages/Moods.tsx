@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import Navbar from "@/components/noire/Navbar";
 import MobileBottomNav from "@/components/noire/MobileBottomNav";
 import FloatingSidebar from "@/components/noire/FloatingSidebar";
@@ -19,11 +20,19 @@ import FloatingSidebar from "@/components/noire/FloatingSidebar";
 const Moods = () => {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userPlan, setUserPlan] = useState("free");
+  const [lastMoodSelection, setLastMoodSelection] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setUserPlan(data.plan || "free");
+          setLastMoodSelection(data.lastMoodSelectionDate?.toDate() || null);
+        }
         setLoading(false);
       } else {
         navigate("/login");
@@ -31,6 +40,31 @@ const Moods = () => {
     });
     return () => unsubscribe();
   }, [navigate]);
+
+  const handleMoodSelect = async (moodId: string) => {
+    if (userPlan === 'free' && lastMoodSelection) {
+      const now = new Date();
+      const diffHours = (now.getTime() - lastMoodSelection.getTime()) / (1000 * 60 * 60);
+
+      if (diffHours < 24) {
+        alert("Free Aura allows only 1 Mood selection per 24 hours. Upgrade for limitless flow.");
+        navigate("/pricing");
+        return;
+      }
+    }
+
+    // Record the selection if free
+    if (userPlan === 'free') {
+      const user = auth.currentUser;
+      if (user) {
+        await updateDoc(doc(db, "users", user.uid), {
+          lastMoodSelectionDate: serverTimestamp()
+        });
+      }
+    }
+
+    setSelectedMood(moodId);
+  };
 
   const moodCategories = [
     {
@@ -118,7 +152,7 @@ const Moods = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
-              onClick={() => setSelectedMood(mood.id)}
+              onClick={() => handleMoodSelect(mood.id)}
               className="group relative h-80 rounded-[40px] overflow-hidden border border-white/10 hover:border-primary/50 transition-all duration-500 shadow-2xl"
             >
               {/* Background Gradient */}

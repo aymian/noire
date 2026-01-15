@@ -8,10 +8,11 @@ import {
 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, orderBy, query } from "firebase/firestore";
 import Navbar from "@/components/noire/Navbar";
 import MobileBottomNav from "@/components/noire/MobileBottomNav";
 import FloatingSidebar from "@/components/noire/FloatingSidebar";
+import { usePlayer } from "@/contexts/PlayerContext";
 
 /**
  * PRO Library Page - Cinematic, Organized, Emotional
@@ -22,19 +23,35 @@ const Library = () => {
     const [user, setUser] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<"playlists" | "liked" | "artists">("playlists");
     const [viewType, setViewType] = useState<"grid" | "list">("grid");
+    const [likedSongs, setLikedSongs] = useState<any[]>([]);
+    const { playSong } = usePlayer();
     const navigate = useNavigate();
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
                 setUser(currentUser);
-                setLoading(false);
+                fetchLikedSongs(currentUser.uid);
             } else {
                 navigate("/login");
             }
         });
         return () => unsubscribe();
     }, [navigate]);
+
+    const fetchLikedSongs = async (uid: string) => {
+        try {
+            const likedRef = collection(db, "users", uid, "liked_songs");
+            const q = query(likedRef, orderBy("likedAt", "desc"));
+            const snapshot = await getDocs(q);
+            const songs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setLikedSongs(songs);
+        } catch (error) {
+            console.error("Error fetching liked songs:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -219,28 +236,69 @@ const Library = () => {
                                     <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-muted-foreground font-body">
                                         <span className="flex items-center gap-2"><User size={16} /> @{user?.displayName || "You"}</span>
                                         <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
-                                        <span>0 songs</span>
+                                        <span>{likedSongs.length} songs</span>
                                         <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
                                         <span className="text-primary font-bold">Infinite Aura</span>
                                     </div>
-                                    <button className="mt-8 px-10 py-4 bg-primary text-primary-foreground rounded-2xl font-bold font-body shadow-xl shadow-primary/20 hover:scale-105 transition-all flex items-center gap-3">
-                                        <Play size={20} fill="currentColor" />
-                                        Play Collection
-                                    </button>
+                                    {likedSongs.length > 0 && (
+                                        <button
+                                            onClick={() => playSong(likedSongs, 0)}
+                                            className="mt-8 px-10 py-4 bg-primary text-primary-foreground rounded-2xl font-bold font-body shadow-xl shadow-primary/20 hover:scale-105 transition-all flex items-center gap-3"
+                                        >
+                                            <Play size={20} fill="currentColor" />
+                                            Play Collection
+                                        </button>
+                                    )}
                                 </div>
                             </div>
-                            <div className="p-10 text-center py-32">
-                                <div className="max-w-xs mx-auto space-y-4">
-                                    <div className="w-20 h-20 bg-muted/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <Heart size={32} className="text-muted-foreground" />
+
+                            {likedSongs.length > 0 ? (
+                                <div className="p-6 md:p-10">
+                                    <div className="space-y-2">
+                                        {likedSongs.map((song, idx) => (
+                                            <motion.div
+                                                key={song.id}
+                                                whileHover={{ x: 10, backgroundColor: "rgba(255,255,255,0.03)" }}
+                                                onClick={() => playSong(likedSongs, idx)}
+                                                className="group flex items-center justify-between p-4 rounded-2xl cursor-pointer border border-transparent hover:border-white/5 transition-all"
+                                            >
+                                                <div className="flex items-center gap-6">
+                                                    <span className="text-xs font-bold text-white/20 group-hover:text-primary transition-colors w-4 underline decoration-primary/0 group-hover:decoration-primary/50">{idx + 1}</span>
+                                                    <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-white/5 border border-white/5">
+                                                        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-purple-500/10 flex items-center justify-center">
+                                                            <Music2 size={24} className="text-white/20 group-hover:scale-110 transition-transform" />
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold font-display group-hover:text-primary transition-colors">{song.title}</h4>
+                                                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{song.artist}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-8">
+                                                    <span className="hidden md:block text-[10px] font-bold text-white/20 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full">{song.mood}</span>
+                                                    <Heart size={16} className="text-primary fill-primary" />
+                                                    <button className="p-2 text-white/20 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <MoreVertical size={18} />
+                                                    </button>
+                                                </div>
+                                            </motion.div>
+                                        ))}
                                     </div>
-                                    <p className="font-display font-bold text-xl">No heartbeats yet</p>
-                                    <p className="text-sm text-muted-foreground font-body leading-relaxed">
-                                        Songs you like will appear here. Start discovering music that resonates with your mood.
-                                    </p>
-                                    <button onClick={() => navigate("/")} className="text-primary font-bold hover:underline">Start Exploring</button>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="p-10 text-center py-32">
+                                    <div className="max-w-xs mx-auto space-y-4">
+                                        <div className="w-20 h-20 bg-muted/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                                            <Heart size={32} className="text-muted-foreground" />
+                                        </div>
+                                        <p className="font-display font-bold text-xl">No heartbeats yet</p>
+                                        <p className="text-sm text-muted-foreground font-body leading-relaxed">
+                                            Songs you like will appear here. Start discovering music that resonates with your mood.
+                                        </p>
+                                        <button onClick={() => navigate("/")} className="text-primary font-bold hover:underline">Start Exploring</button>
+                                    </div>
+                                </div>
+                            )}
                         </motion.div>
                     )}
 

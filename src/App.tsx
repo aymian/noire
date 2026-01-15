@@ -12,30 +12,59 @@ import Library from "./pages/Library";
 import Moods from "./pages/Moods";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
+import AdminMusic from "./pages/AdminMusic";
+import SongDetails from "./pages/SongDetails";
+import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
+import { PlayerProvider, usePlayer } from "./contexts/PlayerContext";
+import PlayerModal from "./components/noire/PlayerModal";
+import { AnimatePresence } from "framer-motion";
 
 const queryClient = new QueryClient();
+
+const AppContent = () => {
+  const { isOpen, queue, currentIndex, closePlayer } = usePlayer();
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/library" element={<Library />} />
+        <Route path="/moods" element={<Moods />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin/music" element={<AdminMusic />} />
+        <Route path="/song-details" element={<SongDetails />} />
+        <Route path="/pricing" element={<Pricing />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+
+      <AnimatePresence>
+        {isOpen && currentIndex !== -1 && (
+          <PlayerModal
+            queue={queue}
+            initialIndex={currentIndex}
+            onClose={closePlayer}
+          />
+        )}
+      </AnimatePresence>
+    </BrowserRouter>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/library" element={<Library />} />
-          <Route path="/moods" element={<Moods />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/admin" element={<Admin />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <PlayerProvider>
+        <AppContent />
+      </PlayerProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

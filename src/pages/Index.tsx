@@ -11,6 +11,8 @@ import { useState, useEffect } from "react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
+import MusicDashboard from "@/components/noire/MusicDashboard";
+
 /**
  * NOIRE Landing Page / Dashboard
  */
@@ -32,12 +34,20 @@ const Index = () => {
     <main className="relative min-h-screen bg-background overflow-x-hidden content-shift">
       {user && <FloatingSidebar />}
       <Navbar onAuthClick={handleAuthClick} />
-      <HeroSection onAuthClick={handleAuthClick} />
-      <MoodSection onAuthClick={handleAuthClick} />
-      <SoundVisualization onAuthClick={handleAuthClick} />
-      <AfrobeatSpotlight onAuthClick={handleAuthClick} />
-      <CallToEmotion onAuthClick={handleAuthClick} />
-      <Footer />
+
+      {user ? (
+        <MusicDashboard />
+      ) : (
+        <>
+          <HeroSection onAuthClick={handleAuthClick} />
+          <MoodSection onAuthClick={handleAuthClick} />
+          <SoundVisualization onAuthClick={handleAuthClick} />
+          <AfrobeatSpotlight onAuthClick={handleAuthClick} />
+          <CallToEmotion onAuthClick={handleAuthClick} />
+          <Footer />
+        </>
+      )}
+
       <MobileBottomNav onAuthClick={handleAuthClick} />
       <div className="h-24 md:h-0" />
     </main>

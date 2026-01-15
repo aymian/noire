@@ -24,8 +24,10 @@ import {
   GoogleAuthProvider,
   GithubAuthProvider,
   signInWithPopup,
+  setPersistence,
+  browserLocalPersistence,
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 /**
@@ -136,6 +138,7 @@ const Login = () => {
             fullName: fullName || "",
             createdAt: serverTimestamp(),
             emailVerified: false,
+            plan: "free",
           });
           console.log("Firestore Record Created");
         } catch (firestoreError: any) {
@@ -176,6 +179,7 @@ const Login = () => {
       } else {
         // Sign in
         console.log("Starting Firebase Signin...");
+        await setPersistence(auth, browserLocalPersistence);
         await signInWithEmailAndPassword(auth, identifier, password);
         console.log("Firebase Signin Success");
 
@@ -230,13 +234,18 @@ const Login = () => {
       const result = await signInWithPopup(auth, authProvider);
       const user = result.user;
 
-      // Save user to Firestore if new
+      // Check if user already exists and has completed onboarding
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const hasCompletedOnboarding = userDoc.exists() && userDoc.data()?.onboardingCompleted;
+
+      // Save/Update user in Firestore
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         email: user.email,
         fullName: user.displayName || "",
-        createdAt: serverTimestamp(),
+        createdAt: userDoc.exists() ? userDoc.data().createdAt : serverTimestamp(),
         emailVerified: user.emailVerified,
+        plan: userDoc.exists() ? (userDoc.data().plan || "free") : "free",
       }, { merge: true });
 
       toast({
@@ -244,7 +253,11 @@ const Login = () => {
         description: `Signed in with ${provider}`,
       });
 
-      navigate("/");
+      if (hasCompletedOnboarding) {
+        navigate("/");
+      } else {
+        navigate("/onboarding");
+      }
     } catch (error: any) {
       console.error("Social auth error:", error);
       toast({
