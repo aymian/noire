@@ -1,5 +1,9 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { Play, Headphones, Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
 
 /**
  * NOIRE Hero Section - Completely Redesigned
@@ -12,6 +16,16 @@ interface HeroSectionProps {
 }
 
 const HeroSection = ({ onAuthClick }: HeroSectionProps) => {
+  const [user, setUser] = useState<any>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
   const mouseX = useMotionValue(0.5);
   const mouseY = useMotionValue(0.5);
 
@@ -26,6 +40,11 @@ const HeroSection = ({ onAuthClick }: HeroSectionProps) => {
   };
 
   const handleAuthClick = (action: "login" | "signup") => {
+    if (user) {
+      navigate("/profile");
+      return;
+    }
+
     if (onAuthClick) {
       onAuthClick(action);
     } else {
@@ -46,7 +65,7 @@ const HeroSection = ({ onAuthClick }: HeroSectionProps) => {
     >
       {/* Layered background */}
       <div className="absolute inset-0 bg-noire-hero" />
-      
+
       {/* Animated gradient orbs */}
       <motion.div
         className="absolute top-1/4 left-1/6 w-[500px] h-[500px] rounded-full bg-noire-purple/30 blur-[150px]"
@@ -67,7 +86,7 @@ const HeroSection = ({ onAuthClick }: HeroSectionProps) => {
       />
 
       {/* Subtle grid pattern */}
-      <div 
+      <div
         className="absolute inset-0 opacity-[0.02]"
         style={{
           backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), 
@@ -120,7 +139,7 @@ const HeroSection = ({ onAuthClick }: HeroSectionProps) => {
               transition={{ duration: 0.8, delay: 0.7 }}
               className="text-lg md:text-xl text-muted-foreground font-body max-w-2xl mx-auto mb-10 leading-relaxed"
             >
-              NOIRE understands how you feel. Tell us your mood, and we'll craft the perfect 
+              NOIRE understands how you feel. Tell us your mood, and we'll craft the perfect
               listening experience. From melancholic nights to euphoric Afrobeats.
             </motion.p>
 
@@ -155,7 +174,7 @@ const HeroSection = ({ onAuthClick }: HeroSectionProps) => {
               {/* Primary CTA */}
               <motion.button
                 onClick={() => handleAuthClick("signup")}
-                className="relative group px-8 py-4 bg-primary text-primary-foreground font-body font-medium text-base rounded-full overflow-hidden w-full sm:w-auto"
+                className="relative group px-8 py-4 bg-primary text-primary-foreground font-body font-bold text-base rounded-2xl overflow-hidden w-full sm:w-auto"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -167,21 +186,23 @@ const HeroSection = ({ onAuthClick }: HeroSectionProps) => {
                 />
                 <span className="relative z-10 flex items-center justify-center gap-2">
                   <Play className="w-5 h-5 fill-current" />
-                  Start Free Trial
+                  {user ? "Continue Listening" : "Start Free Trial"}
                 </span>
               </motion.button>
 
-              {/* Secondary CTA */}
-              <motion.button
-                onClick={() => handleAuthClick("login")}
-                className="group px-8 py-4 border border-border/50 text-foreground font-body font-medium text-base rounded-full hover:bg-muted/30 transition-all duration-300 w-full sm:w-auto"
-                whileHover={{ scale: 1.02, borderColor: "hsl(var(--primary) / 0.5)" }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  I have an account
-                </span>
-              </motion.button>
+              {/* Secondary CTA - Only if not logged in */}
+              {!user && (
+                <motion.button
+                  onClick={() => handleAuthClick("login")}
+                  className="group px-8 py-4 border border-border/50 text-foreground font-body font-medium text-base rounded-2xl hover:bg-muted/30 transition-all duration-300 w-full sm:w-auto"
+                  whileHover={{ scale: 1.02, borderColor: "hsl(var(--primary) / 0.5)" }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    I have an account
+                  </span>
+                </motion.button>
+              )}
             </motion.div>
 
             {/* Social proof */}

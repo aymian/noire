@@ -6,24 +6,31 @@ import SoundVisualization from "@/components/noire/SoundVisualization";
 import AfrobeatSpotlight from "@/components/noire/AfrobeatSpotlight";
 import CallToEmotion from "@/components/noire/CallToEmotion";
 import Footer from "@/components/noire/Footer";
+import FloatingSidebar from "@/components/noire/FloatingSidebar";
+import { useState, useEffect } from "react";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 /**
- * NOIRE Landing Page
- * A world-class, emotionally-driven music streaming platform landing page
- * 
- * Design Philosophy:
- * - Emotion-first, not feature-first
- * - Music as a mood, not a playlist
- * - Night, calm, soul, rhythm, intimacy
- * - Luxury, cinematic, minimal, bold
+ * NOIRE Landing Page / Dashboard
  */
 const Index = () => {
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
   const handleAuthClick = (action: "login" | "signup") => {
     window.location.href = `/login?action=${action}`;
   };
 
   return (
-    <main className="relative min-h-screen bg-background overflow-x-hidden">
+    <main className="relative min-h-screen bg-background overflow-x-hidden content-shift">
+      {user && <FloatingSidebar />}
       <Navbar onAuthClick={handleAuthClick} />
       <HeroSection onAuthClick={handleAuthClick} />
       <MoodSection onAuthClick={handleAuthClick} />
