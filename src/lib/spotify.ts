@@ -49,6 +49,19 @@ async function fetchWebApi(endpoint: string, method: string, body?: any) {
         method,
         body: body ? JSON.stringify(body) : undefined
     });
+
+    if (res.status === 401) {
+        console.error("Spotify API: Unauthorized. Your token might be expired.");
+        // Clear token so next call tries to refresh
+        accessToken = null;
+    }
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error(`Spotify API error (${res.status}):`, errorData);
+        throw new Error(errorData.error?.message || `Spotify API error: ${res.status}`);
+    }
+
     return await res.json();
 }
 

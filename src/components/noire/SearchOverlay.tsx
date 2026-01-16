@@ -25,6 +25,7 @@ const SearchOverlay = ({ isOpen, onClose, onPlaySong }: SearchOverlayProps) => {
     const [results, setResults] = useState<Song[]>([]);
     const [topTracks, setTopTracks] = useState<Song[]>([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [recentSearches, setRecentSearches] = useState<string[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -75,6 +76,7 @@ const SearchOverlay = ({ isOpen, onClose, onPlaySong }: SearchOverlayProps) => {
                 return;
             }
             setLoading(true);
+            setError(null);
             try {
                 const spotifyTracks = await searchSpotifyTracks(searchTerm);
 
@@ -82,13 +84,14 @@ const SearchOverlay = ({ isOpen, onClose, onPlaySong }: SearchOverlayProps) => {
                     id: track.id,
                     title: track.name,
                     artist: track.artists.map((a: any) => a.name).join(", "),
-                    audioUrl: track.preview_url || "", // Preview URL might be null
-                    mood: "Spotify" // We can't easily get mood from Spotify search result without more API calls
+                    audioUrl: track.preview_url || "",
+                    mood: track.preview_url ? "Spotify" : "Premium Only"
                 }));
 
-                setResults(mappedSongs.filter(s => s.audioUrl)); // Only show songs with previews
-            } catch (error) {
+                setResults(mappedSongs);
+            } catch (error: any) {
                 console.error("Search failed:", error);
+                setError(error.message || "An error occurred while tuning frequencies.");
             } finally {
                 setLoading(false);
             }
@@ -261,6 +264,19 @@ const SearchOverlay = ({ isOpen, onClose, onPlaySong }: SearchOverlayProps) => {
                                             <div className="w-12 h-12 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                                             <span className="text-[10px] font-bold text-primary animate-pulse tracking-widest uppercase">Tuning Frequencies...</span>
                                         </div>
+                                    ) : error ? (
+                                        <div className="p-20 flex flex-col items-center text-center space-y-6">
+                                            <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
+                                                <Zap size={32} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <h4 className="text-xl font-display font-medium text-white/80">Signal Interference</h4>
+                                                <p className="text-sm text-white/30 font-body max-w-[240px]">{error}</p>
+                                                {error.includes("token") && (
+                                                    <p className="text-[10px] text-primary/60 font-bold uppercase mt-4">Refresh your Spotify token or set up Client IDs.</p>
+                                                )}
+                                            </div>
+                                        </div>
                                     ) : results.length > 0 ? (
                                         results.map((song, i) => (
                                             <motion.button
@@ -286,12 +302,17 @@ const SearchOverlay = ({ isOpen, onClose, onPlaySong }: SearchOverlayProps) => {
                                                         <div className="flex items-center gap-3">
                                                             <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{song.artist}</span>
                                                             <div className="w-1 h-1 rounded-full bg-white/10" />
-                                                            <span className="text-[10px] font-bold text-primary/60 uppercase tracking-widest">{song.mood}</span>
+                                                            <span className={`text-[10px] font-bold uppercase tracking-widest ${song.audioUrl ? 'text-primary/60' : 'text-red-400/60'}`}>
+                                                                {song.mood}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 <div className="flex items-center gap-4 pr-2">
+                                                    {!song.audioUrl && (
+                                                        <span className="text-[8px] font-bold text-white/20 border border-white/10 px-2 py-1 rounded">NO PREVIEW</span>
+                                                    )}
                                                     <Mic2 size={14} className="text-white/10 group-hover:text-primary transition-colors" />
                                                     <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                                         <ArrowRight size={14} className="text-white" />
