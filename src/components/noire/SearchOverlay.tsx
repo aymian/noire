@@ -4,6 +4,7 @@ import { Search, X, Music2, User, Mic2, Play, ArrowRight, History, Zap, Command,
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, limit, orderBy } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import { searchSpotifyTracks, getTopTracks } from "@/lib/spotify";
 
 interface Song {
     id: string;
@@ -22,6 +23,7 @@ interface SearchOverlayProps {
 const SearchOverlay = ({ isOpen, onClose, onPlaySong }: SearchOverlayProps) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [results, setResults] = useState<Song[]>([]);
+    const [topTracks, setTopTracks] = useState<Song[]>([]);
     const [loading, setLoading] = useState(false);
     const [recentSearches, setRecentSearches] = useState<string[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -31,6 +33,20 @@ const SearchOverlay = ({ isOpen, onClose, onPlaySong }: SearchOverlayProps) => {
     useEffect(() => {
         const saved = localStorage.getItem("noire_recent_searches");
         if (saved) setRecentSearches(JSON.parse(saved));
+
+        // Fetch top tracks on mount
+        const fetchTop = async () => {
+            const tracks = await getTopTracks();
+            const mapped = tracks.map((track: any) => ({
+                id: track.id,
+                title: track.name,
+                artist: track.artists.map((a: any) => a.name).join(", "),
+                audioUrl: track.preview_url || "",
+                mood: "Top Track"
+            }));
+            setTopTracks(mapped.filter((s: any) => s.audioUrl));
+        };
+        fetchTop();
     }, []);
 
     useEffect(() => {
@@ -60,28 +76,17 @@ const SearchOverlay = ({ isOpen, onClose, onPlaySong }: SearchOverlayProps) => {
             }
             setLoading(true);
             try {
-                // We'll perform a simple prefix-like search using Firestore
-                // Note: Firestore doesn't support true full-text search without 3rd party
-                // But we can approximate for small datasets
-                const songsRef = collection(db, "songs");
+                const spotifyTracks = await searchSpotifyTracks(searchTerm);
 
-                // Search by title (case sensitive in firestore, but we'll try to match)
-                const q = query(
-                    songsRef,
-                    limit(10)
-                );
+                const mappedSongs: Song[] = spotifyTracks.map((track: any) => ({
+                    id: track.id,
+                    title: track.name,
+                    artist: track.artists.map((a: any) => a.name).join(", "),
+                    audioUrl: track.preview_url || "", // Preview URL might be null
+                    mood: "Spotify" // We can't easily get mood from Spotify search result without more API calls
+                }));
 
-                const snapshot = await getDocs(q);
-                const allSongs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Song));
-
-                // Manual filtering for better UX (since firestore is limited)
-                const filtered = allSongs.filter(song =>
-                    song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    song.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    song.mood.toLowerCase().includes(searchTerm.toLowerCase())
-                );
-
-                setResults(filtered);
+                setResults(mappedSongs.filter(s => s.audioUrl)); // Only show songs with previews
             } catch (error) {
                 console.error("Search failed:", error);
             } finally {
@@ -167,6 +172,39 @@ const SearchOverlay = ({ isOpen, onClose, onPlaySong }: SearchOverlayProps) => {
                         <div className="max-h-[60vh] overflow-y-auto no-scrollbar pb-8">
                             {searchTerm.length === 0 ? (
                                 <div className="p-8 space-y-10">
+                                    {/* Top Tracks */}
+                                    {topTracks.length > 0 && (
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-3 text-white/40 mb-4 px-2">
+                                                <TrendingUp size={14} />
+                                                <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Your Top Frequencies</span>
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {topTracks.map((song, i) => (
+                                                    <button
+                                                        key={song.id}
+                                                        onClick={() => handleSelect(song)}
+                                                        className="flex items-center justify-between p-4 px-6 rounded-3xl hover:bg-white/5 transition-all text-left group"
+                                                    >
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-white/5 border border-white/10 shrink-0">
+                                                                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-purple-500/20" />
+                                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                                    <Music2 size={16} className="text-primary/40 group-hover:scale-110 transition-transform" />
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-white group-hover:text-primary transition-colors">{song.title}</span>
+                                                                <span className="text-[10px] text-white/40 uppercase tracking-widest">{song.artist}</span>
+                                                            </div>
+                                                        </div>
+                                                        <ArrowRight size={14} className="text-white/10 group-hover:text-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Recent Searches */}
                                     {recentSearches.length > 0 && (
                                         <div className="space-y-4">
